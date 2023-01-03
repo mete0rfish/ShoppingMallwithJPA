@@ -1,14 +1,16 @@
 package com.example.demo.repository;
 
+import com.querydsl.core.QueryResults;
+import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.Wildcard;
+import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.example.demo.constant.ItemSellStatus;
 import com.example.demo.dto.ItemSearchDto;
+import com.example.demo.dto.MainItemDto;
+import com.example.demo.dto.QMainItemDto;
 import com.example.demo.entity.Item;
 import com.example.demo.entity.QItem;
-
-import com.querydsl.core.QueryResults;
-import com.querydsl.jpa.impl.JPAQueryFactory;
-
-import com.querydsl.core.types.dsl.BooleanExpression;
+import com.example.demo.entity.QItemImg;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -16,7 +18,7 @@ import org.thymeleaf.util.StringUtils;
 
 import javax.persistence.EntityManager;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.List;
 
 public class ItemRepositoryCustomImpl implements ItemRepositoryCustom {
     // 2. 동적 쿼리를 생성하기 위해 JPAQueryFactory 사용
@@ -80,6 +82,40 @@ public class ItemRepositoryCustomImpl implements ItemRepositoryCustom {
         List<Item> content = results.getResults();
         long total = results.getTotal();
         // 8. 조회 후 데이터를 PageImpl 객체로 반환
+        return new PageImpl<>(content, pageable, total);
+    }
+
+    // 검색어가 null 아니면 상품명에 해당 검색어가 포함되는 상품을 조회
+    private BooleanExpression itemNmLike(String searchQuery){
+        return StringUtils.isEmpty(searchQuery) ? null : QItem.item.itemNm.like("%"+searchQuery + "%");
+    }
+
+    @Override
+    public Page<MainItemDto> getMainItemPage(ItemSearchDto itemSearchDto, Pageable pageable) {
+        QItem item = QItem.item;
+        QItemImg itemImg = QItemImg.itemImg;
+
+        QueryResults<MainItemDto> results = queryFactory
+                .select(
+                        new QMainItemDto( // QMainItemDto 생성자에 반환할 값들 입력
+                                item.id,
+                                item.itemNm,
+                                item.itemDetail,
+                                itemImg.imgUrl,
+                                item.price
+                        )
+                )
+                .from(itemImg)
+                .join(itemImg.item, item) // itemImg와 item을 내부 조인
+                .where(itemImg.repImgYn.eq("Y")) // 상품 이미지는 대표 상품의 이미지만 가져옴
+                .where(itemNmLike(itemSearchDto.getSearchQuery()))
+                .orderBy(item.id.desc())
+                .offset(pageable.getOffset())
+                .limit(pageable.getPageSize())
+                .fetchResults();
+
+        List<MainItemDto> content = results.getResults();
+        long total = results.getTotal();
         return new PageImpl<>(content, pageable, total);
     }
 }
