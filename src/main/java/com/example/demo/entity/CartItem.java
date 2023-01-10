@@ -8,7 +8,7 @@ import javax.persistence.*;
 @Entity
 @Getter @Setter
 @Table(name="cart_item")
-public class CartItem {
+public class CartItem extends BaseEntity{
 
     @Id
     @Column(name="cart_item_id")
@@ -25,5 +25,24 @@ public class CartItem {
 
     private int count; // 같은 상품 몇개 담을지
 
+    /*
+    8장 장바구니
+     */
 
+    // 장바구니 상품 생성
+    public static CartItem createCartITem(Cart cart, Item item, int count){
+        CartItem cartItem = new CartItem();
+        cartItem.setCart(cart);
+        cartItem.setItem(item);
+        cartItem.setCount(count);
+        return cartItem;
+    }
+    // 장바구니에 담을 상품 수량 조절
+    public void addCount(int count){
+        this.count += count;
+    }
+
+    public void updateCount(int count){
+        this.count = count;
+    }
 }
